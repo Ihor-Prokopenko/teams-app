@@ -47,7 +47,7 @@ class UserCreateAPIView(RetryExceptionHandler, CreateAPIView):
         return Response({'message': message}, status=status_code)
 
 
-class UserLoginView(CreateAPIView):
+class UserLoginAPIView(CreateAPIView):
     """Log in a user."""
 
     serializer_class = LoginSerializer
@@ -79,7 +79,7 @@ class UserLoginView(CreateAPIView):
         return Response(response_data, status=status.HTTP_200_OK)
 
 
-class UserLogoutView(APIView):
+class UserLogoutAPIView(APIView):
     """ Log out a user. """
 
     permission_classes = [permissions.IsAuthenticated]

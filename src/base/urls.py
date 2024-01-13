@@ -24,6 +24,7 @@ api_v_1_urls = [
     path('api/v1/', include(
         [
             path('users/', include('users.urls')),
+            path('', include('teams_app.urls')),
         ]
     ))
 ]
