@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "teams_app"
+version = "0.1.0"
+description = ""
+authors = ["Ihor Prokopenko <i.prokopenko.dev@gmail.com>"]
+license = "MIT"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^5.0.1"
+django-environ = "^0.11.2"
