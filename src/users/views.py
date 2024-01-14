@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.hashers import make_password
 from rest_framework import status, permissions
@@ -21,8 +22,8 @@ class UserCreateAPIView(RetryExceptionHandler, CreateAPIView):
     queryset = User.objects.all()
     permission_classes = [~permissions.IsAuthenticated]
 
-    @retry(stop_max_attempt_number=3, wait_fixed=1000)
-    def create(self, request, *args, **kwargs) -> Response:
+    @retry(stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS, wait_fixed=settings.RETRY_WAIT_FIXED)
+    def create(self, request: Request, *args, **kwargs) -> Response:
         """Create a new user."""
         serializer = self.get_serializer(data=request.data)
 

@@ -24,6 +24,7 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'drf_yasg',
+    'django_filters',
 
     'users',
     'teams_app',
@@ -79,6 +80,18 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# DRF
+
+PAGINATION_PAGE_SIZE = 10
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": PAGINATION_PAGE_SIZE,
+    "EXCEPTION_HANDLER": "base.exception_handlers.custom_exception_handler",
+    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
+}
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
@@ -89,3 +102,8 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Retrying
+
+RETRY_MAX_ATTEMPTS = 3
+RETRY_WAIT_FIXED = 1000
