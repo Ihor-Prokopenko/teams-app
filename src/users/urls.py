@@ -16,4 +16,10 @@ auth = [
     path('logout/', views.UserLogoutAPIView.as_view(), name='logout'),
 ]
 
-urlpatterns = [] + crud + auth
+google_oauth = [
+    path('oauth/google', views.GoogleLoginApiView.as_view(), name='google_login'),
+    path('oauth/google/redirect/', views.GoogleRedirectApiView.as_view(), name='google_login_redirect'),
+    path('oauth/google/callback', views.GoogleCallbackApiView.as_view(), name='google_login_callback'),
+]
+
+urlpatterns = [] + crud + auth + google_oauth

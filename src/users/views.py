@@ -1,16 +1,20 @@
+from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import DatabaseError
-from rest_framework import status, permissions, filters, mixins
+from django.shortcuts import redirect
+from rest_framework import status, permissions, filters, mixins, serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView, ListAPIView, GenericAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
-from base.exception_handlers import RetryExceptionHandlerMixin, RetryExceptionError
+from base.exception_handlers import RetryExceptionHandlerMixin
 from base.mixins import ListMixin
+from .google_oauth_utils import google_get_access_token, google_get_user_info
 from .permissions import DeleteUserPermission
 from .serializers import UserSerializer, LoginSerializer, UserEditSerializer, ChangePasswordSerializer
 from .models import User
@@ -49,7 +53,6 @@ class UserCreateAPIView(RetryExceptionHandlerMixin, CreateAPIView):
         except ValidationError as error:
             message = error.detail
             status_code = status.HTTP_400_BAD_REQUEST
-            return Response({'message': message}, status=status_code)
         return Response({'message': message}, status=status_code)
 
 
@@ -89,12 +92,12 @@ class UserEditView(RetryExceptionHandlerMixin, mixins.UpdateModelMixin, GenericA
         except ValidationError as error:
             message = error.detail
             status_code = status.HTTP_400_BAD_REQUEST
-        return Response({"message": message}, status=status_code)
+        return Response({'message': message}, status=status_code)
 
 
 class DeleteUserAPIView(RetryExceptionHandlerMixin, APIView):
     permission_classes = [permissions.IsAuthenticated, DeleteUserPermission]
-    http_method_names = ["delete"]
+    http_method_names = ['delete']
 
     @retry(
         stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
@@ -206,3 +209,95 @@ class UserLogoutAPIView(RetryExceptionHandlerMixin, APIView):
         """ Log out a user."""
         logout(request)
         return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
+
+
+""" GOOGLE OAUTH API ENDPOINTS """
+
+
+class GoogleLoginApiView(RetryExceptionHandlerMixin, APIView):
+    """ This view handles Google authentication login and redirects to the home page. """
+    class InputSerializer(serializers.Serializer):
+        code = serializers.CharField(required=True)
+
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
+    def get(self, request, *args, **kwargs):
+        """
+        Handle request for Google authentication.
+        TODO: Redirects to the home page frontend URL.
+        """
+        input_serializer = self.InputSerializer(data=request.GET)
+        input_serializer.is_valid(raise_exception=True)
+
+        validated_data = input_serializer.validated_data
+        code = validated_data.get('code')
+
+        redirect_uri = f'{settings.BASE_URL}{reverse("google_login_callback")}'
+        access_token = google_get_access_token(code=code, redirect_uri=redirect_uri)
+
+        user_data = google_get_user_info(access_token=access_token)
+        try:
+            user = User.objects.get(email=user_data.get('email'))
+        except User.DoesNotExist:
+            email = user_data.get('email')
+            first_name = user_data.get('given_name', '')
+            last_name = user_data.get('family_name', '')
+
+            user = User.objects.create(
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                registration_method='google',
+            )
+        login(request, user)
+
+        response_data = {'message': 'Login Successful'}
+        response = Response(response_data, status=status.HTTP_200_OK)
+        return response  # TODO: Here must be redirect to home page frontend url
+
+
+class GoogleRedirectApiView(APIView):
+    """Handle request for redirecting to Google choice account."""
+
+    permission_classes = [~permissions.IsAuthenticated,]
+
+    def get(self, request, *args, **kwargs):
+        """Handle request for redirecting to Google choice account."""
+        google_auth_url = settings.GOOGLE_AUTH_URL
+        redirect_uri = f'{settings.BASE_URL}{reverse("google_login_callback")}'
+        params = {
+            'response_type': 'code',
+            'client_id': settings.GOOGLE_OAUTH2_CLIENT_ID,
+            'redirect_uri': redirect_uri,
+            'prompt': 'select_account',
+            'access_type': 'offline',
+            'scope': f'{settings.GOOGLE_SCOPE_EMAIL} {settings.GOOGLE_SCOPE_PROFILE}',
+        }
+
+        return redirect(google_auth_url + "?" + urlencode(params))
+
+
+class GoogleCallbackApiView(APIView):
+    """ Handle request for Google authentication callback."""
+    def get(self, request, *args, **kwargs):
+        """ Handle request for Google authentication callback."""
+        scope_values = [
+            'email',
+            'profile',
+            'openid',
+            settings.GOOGLE_SCOPE_PROFILE,
+            settings.GOOGLE_SCOPE_EMAIL,
+        ]
+        scope = ' '.join(scope_values)
+        params = {
+            'code': request.GET.get('code'),
+            'scope': scope,
+            'authuser': 0,
+            'prompt': 'none',
+        }
+        google_login_url = f'{settings.BASE_URL}{reverse("google_login")}'
+
+        return redirect(google_login_url + '?' + urlencode(params))

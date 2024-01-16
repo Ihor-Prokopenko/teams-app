@@ -106,3 +106,24 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 RETRY_MAX_ATTEMPTS = 3
 RETRY_WAIT_FIXED = 1000
+REQUEST_TIMEOUT = 5
+
+# GOOGLE AUTH
+
+BASE_URL = env.str("BASE_URL", default="")
+GOOGLE_OAUTH2_CLIENT_ID = env.str("GOOGLE_OAUTH2_CLIENT_ID", default="")
+GOOGLE_OAUTH2_CLIENT_SECRET = env.str("GOOGLE_OAUTH2_CLIENT_SECRET", default="")
+GOOGLE_ID_TOKEN_INFO_URL = env.str("GOOGLE_ID_TOKEN_INFO_URL", default="")
+GOOGLE_ACCESS_TOKEN_OBTAIN_URL = env.str("GOOGLE_ACCESS_TOKEN_OBTAIN_URL", default="")
+GOOGLE_USER_INFO_URL = env.str("GOOGLE_USER_INFO_URL", default="")
+GOOGLE_AUTH_URL = env.str("GOOGLE_AUTH_URL", default="")
+GOOGLE_SCOPE_EMAIL = env.str("GOOGLE_SCOPE_EMAIL", default="")
+GOOGLE_SCOPE_PROFILE = env.str("GOOGLE_SCOPE_PROFILE", default="")
+
+#
+
+REGISTRATION_METHODS = [
+    ('registration', 'Registration'),
+    ('google', "Google"),
+]
+

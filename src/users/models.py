@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.conf import settings
 
 
 class LowercaseEmailField(models.EmailField):
@@ -18,23 +19,30 @@ class User(AbstractUser):
     """
 
     email = LowercaseEmailField(unique=True, blank=False, null=False)
+    registration_method = models.CharField(
+        max_length=50,
+        choices=settings.REGISTRATION_METHODS,
+        default=settings.REGISTRATION_METHODS[0],
+        blank=False,
+        null=False,
+    )
 
     @property
     def full_name(self) -> str:
-        return f"{self.first_name} {self.last_name}".strip()
+        return f'{self.first_name} {self.last_name}'.strip()
 
     @full_name.setter
     def full_name(self, name) -> None:
         """ Sets the full name of the user. """
         if not name:
-            raise ValueError("Full name cannot be empty.")
+            raise ValueError('Full name cannot be empty.')
 
-        name_parts = name.rsplit(" ", 1)
+        name_parts = name.rsplit(' ', 1)
         if len(name_parts) == 2:
             self.first_name, self.last_name = name_parts
         else:
             self.first_name = name.strip()
-            self.last_name = ""
+            self.last_name = ''
 
     def save(self, *args, **kwargs) -> None:
         """ Override the save method to set the email as the username. """
@@ -43,4 +51,4 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         """Represent the User model as a string."""
-        return f"{self.email}"
+        return f'{self.email}'
