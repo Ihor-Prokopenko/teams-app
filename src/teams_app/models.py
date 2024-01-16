@@ -27,7 +27,7 @@ class Team(models.Model):
 
     def __str__(self) -> str:
         """ Returns a string representation of the team. """
-        return f'id={self.id}, {self.name}'
+        return f'id={self.id}, {self.name}, owner={self.owner}'
 
 
 class Member(models.Model):

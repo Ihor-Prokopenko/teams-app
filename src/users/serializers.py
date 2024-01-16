@@ -15,6 +15,20 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField()
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=True)
 
+
+class UserEditSerializer(serializers.ModelSerializer):
+    fullName = serializers.CharField(source="full_name", required=False)
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "fullName"]
+        partial = True
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)

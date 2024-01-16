@@ -4,24 +4,24 @@ from teams_app import views
 
 
 teams_crud = [
-    path('', views.TeamListAPIView.as_view(), name="team-list"),
-    path('<int:pk>/', views.TeamDetailAPIView.as_view(), name="team-detail"),
-    path('create/', views.TeamCreateAPIView.as_view(), name="team-create"),
-    path('<int:pk>/update/', views.TeamUpdateAPIView.as_view(), name="team-update"),
-    path('<int:pk>/delete/', views.TeamDeleteAPIView.as_view(), name="team-delete"),
+    path('', views.TeamListAPIView.as_view(), name="team_list"),
+    path('<int:pk>/', views.TeamDetailAPIView.as_view(), name="team_detail"),
+    path('create/', views.TeamCreateAPIView.as_view(), name="team_create"),
+    path('update/<int:pk>/', views.TeamUpdateAPIView.as_view(), name="team_update"),
+    path('delete/<int:pk>/', views.TeamDeleteAPIView.as_view(), name="team_delete"),
 ]
 
 members_crud = [
-    path('', views.MemberListAPIView.as_view(), name="member-list"),
-    path('<int:pk>/', views.MemberDetailAPIView.as_view(), name="member-detail"),
-    path('create/', views.MemberCreateAPIView.as_view(), name="member-create"),
-    path('<int:pk>/update/', views.MemberUpdateAPIView.as_view(), name="member-update"),
-    path('<int:pk>/delete/', views.MemberDeleteAPIView.as_view(), name="member-delete"),
+    path('', views.MemberListAPIView.as_view(), name="member_list"),
+    path('<int:pk>/', views.MemberDetailAPIView.as_view(), name="member_detail"),
+    path('create/', views.MemberCreateAPIView.as_view(), name="member_create"),
+    path('update/<int:pk>/', views.MemberUpdateAPIView.as_view(), name="member_update"),
+    path('delete/<int:pk>/', views.MemberDeleteAPIView.as_view(), name="member_delete"),
 ]
 
 teams_management = [
-    path('<int:team_pk>/add-member/<int:member_pk>/', views.AddMemberAPIView.as_view(), name="add-member"),
-    path('<int:team_pk>/remove-member/<int:member_pk>/', views.RemoveMemberAPIView.as_view(), name="remove-member"),
+    path('<int:team_pk>/add-member/<int:member_pk>/', views.AddMemberAPIView.as_view(), name="add_member"),
+    path('<int:team_pk>/remove-member/<int:member_pk>/', views.RemoveMemberAPIView.as_view(), name="remove_member"),
 ]
 
 teams = [

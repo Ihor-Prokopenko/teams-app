@@ -13,12 +13,15 @@ class MemberCreateSerializer(serializers.ModelSerializer):
         fields = ['email', 'full_name']
 
     def validate(self, attrs):
-        existing_emails = self.context['request'].user.members.values_list('email', flat=True)
+        """ Validate that the email is not already in use by another user's member. """
+        request = self.context.get('request')
+        existing_emails = request.user.members.values_list('email', flat=True)
         if attrs['email'] in existing_emails:
             raise serializers.ValidationError({'email': f'Member with email "{attrs["email"]}" already exists.'})
         return attrs
 
     def create(self, validated_data):
+        """ Set the user as creator of the member. """
         validated_data['user'] = self.context['request'].user
         return super().create(validated_data)
 
@@ -47,12 +50,15 @@ class MemberUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Member
         fields = ['email', 'full_name', 'team']
+        partial = True
 
     def validate(self, attrs):
-        existing_emails = self.context.get('request').user.members.values_list('email', flat=True)
+        """ Validate that the email is not already in use by another user's member. """
+        request = self.context.get('request')
+        existing_emails = request.user.members.values_list('email', flat=True).exclude(id=self.instance.id)
         if attrs['email'] in existing_emails:
             raise serializers.ValidationError({'email': f'Member with email "{attrs["email"]}" already exists.'})
-        return attrs
+        return super().validate(attrs)
 
 
 """ TEAM SERIALIZERS """
@@ -65,12 +71,15 @@ class TeamCreateSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
     def validate(self, attrs):
-        existing_team_names = self.context['request'].user.teams.values_list('name', flat=True)
+        """ Validate that the team name is not already in use by another user's team. """
+        request = self.context.get('request')
+        existing_team_names = request.user.teams.values_list('name', flat=True)
         if attrs['name'] in existing_team_names:
             raise serializers.ValidationError({'name': f'Team with name "{attrs["name"]}" already exists.'})
         return attrs
 
     def create(self, validated_data):
+        """ Set the user as the owner of the team. """
         validated_data['owner'] = self.context['request'].user
         return super().create(validated_data)
 
@@ -80,12 +89,15 @@ class TeamUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
         fields = ['name']
+        partial = True
 
     def validate(self, attrs):
-        existing_emails = self.context.get('request').user.teams.values_list('name', flat=True)
+        """ Validate that the team name is not already in use by another user's team. """
+        request = self.context.get('request')
+        existing_emails = request.user.teams.values_list('name', flat=True).exclude(id=self.instance.id)
         if attrs['name'] in existing_emails:
             raise serializers.ValidationError({'name': f'Team with name "{attrs["name"]}" already exists.'})
-        return attrs
+        return super().validate(attrs)
 
 
 class TeamSerializer(serializers.ModelSerializer):

@@ -1,18 +1,17 @@
 from django.db import DatabaseError
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import CreateAPIView, ListAPIView, UpdateAPIView, RetrieveAPIView, DestroyAPIView, \
-    get_object_or_404
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveAPIView, DestroyAPIView, GenericAPIView
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework import status, permissions, filters
+from rest_framework import status, permissions, filters, mixins
 from django.conf import settings
 
-from .mixins import ListMixin
+from base.mixins import ListMixin
 from .models import Team, Member
 from .serializers import TeamSerializer, TeamCreateSerializer, MemberCreateSerializer, MemberSerializer, \
     MemberUpdateSerializer, TeamUpdateSerializer
-from base.exception_handlers import RetryExceptionError, RetryExceptionHandlerMixin
+from base.exception_handlers import RetryExceptionHandlerMixin
 
 from retrying import retry
 
@@ -74,28 +73,23 @@ class TeamDetailAPIView(RetrieveAPIView):
         return queryset
 
 
-class TeamUpdateAPIView(RetryExceptionHandlerMixin, UpdateAPIView):
-    """ Update details of a team """
+class TeamUpdateAPIView(RetryExceptionHandlerMixin, mixins.UpdateModelMixin, GenericAPIView):
+    """Update team details. """
 
+    queryset = Team.objects.all()
     serializer_class = TeamUpdateSerializer
-    lookup_field = 'pk'
-    allowed_methods = ['PUT']
     permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self) -> list[Team]:
-        queryset = self.request.user.teams.all()
-        self.queryset = queryset
-        return queryset
 
     @retry(
         stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
         wait_fixed=settings.RETRY_WAIT_FIXED,
         retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
     )
-    def put(self, request: Request, *args, **kwargs) -> Response:
-        """ Update details of a team """
+    def put(self, request, pk: int) -> Response:
+        """Update team details. """
         partial = True
-        serializer = self.get_serializer(self.get_object(), data=request.data, partial=partial)
+        team = request.user.teams.filter(pk=pk).first()
+        serializer = self.get_serializer(team, data=request.data, partial=partial)
         try:
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
@@ -104,7 +98,7 @@ class TeamUpdateAPIView(RetryExceptionHandlerMixin, UpdateAPIView):
         except ValidationError as error:
             message = error.detail
             status_code = status.HTTP_400_BAD_REQUEST
-        return Response({'message': message}, status=status_code)
+        return Response({"message": message}, status=status_code)
 
 
 class TeamDeleteAPIView(RetryExceptionHandlerMixin, DestroyAPIView):
@@ -195,28 +189,23 @@ class MemberDetailAPIView(RetrieveAPIView):
         return queryset
 
 
-class MemberUpdateAPIView(RetryExceptionHandlerMixin, UpdateAPIView):
-    """ Update user details """
+class MemberUpdateAPIView(RetryExceptionHandlerMixin, mixins.UpdateModelMixin, GenericAPIView):
+    """Update user details. """
 
+    queryset = Member.objects.all()
     serializer_class = MemberUpdateSerializer
-    lookup_field = 'pk'
-    allowed_methods = ['PUT']
     permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self) -> list[Member]:
-        queryset = self.request.user.members.all()
-        self.queryset = queryset
-        return queryset
 
     @retry(
         stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
         wait_fixed=settings.RETRY_WAIT_FIXED,
         retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
     )
-    def put(self, request: Request, *args, **kwargs) -> Response:
-        """Update member details"""
+    def put(self, request, pk: int) -> Response:
+        """Update user details. """
         partial = True
-        serializer = self.get_serializer(self.get_object(), data=request.data, partial=partial)
+        member = request.user.members.filter(pk=pk).first()
+        serializer = self.get_serializer(member, data=request.data, partial=partial)
         try:
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
@@ -225,7 +214,7 @@ class MemberUpdateAPIView(RetryExceptionHandlerMixin, UpdateAPIView):
         except ValidationError as error:
             message = error.detail
             status_code = status.HTTP_400_BAD_REQUEST
-        return Response({'message': message}, status=status_code)
+        return Response({"message": message}, status=status_code)
 
 
 class MemberDeleteAPIView(RetryExceptionHandlerMixin, DestroyAPIView):
