@@ -7,8 +7,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env = Env()
 env_file_path = os.path.join(BASE_DIR, "../.env")
-if os.path.exists(env_file_path):
-    env.read_env(env_file=env_file_path)
+
+if not os.path.exists(env_file_path):
+    env_file_path = os.path.join(BASE_DIR, "../.env.example")
+env.read_env(env_file=env_file_path)
 
 SECRET_KEY = env.str("SECRET_KEY", default="django-insecure-suspv&r)sdinhulqxrv3vl$ovu2ws(2tl3re4f_k4c_uj9&-mn")
 
@@ -126,4 +128,3 @@ REGISTRATION_METHODS = [
     ('registration', 'Registration'),
     ('google', "Google"),
 ]
-

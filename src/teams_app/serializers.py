@@ -49,7 +49,7 @@ class MemberUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Member
-        fields = ['email', 'full_name', 'team']
+        fields = ['email', 'full_name']
         partial = True
 
     def validate(self, attrs):
