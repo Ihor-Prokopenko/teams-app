@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.hashers import make_password
+from django.db import DatabaseError
 from rest_framework import status, permissions
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView
@@ -8,21 +9,25 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from base.exception_handlers import RetryExceptionHandler, RetryExceptionError
+from base.exception_handlers import RetryExceptionHandlerMixin, RetryExceptionError
 from .serializers import UserSerializer, LoginSerializer
 from .models import User
 
 from retrying import retry
 
 
-class UserCreateAPIView(RetryExceptionHandler, CreateAPIView):
+class UserCreateAPIView(RetryExceptionHandlerMixin, CreateAPIView):
     """Create a new user."""
 
     serializer_class = UserSerializer
     queryset = User.objects.all()
     permission_classes = [~permissions.IsAuthenticated]
 
-    @retry(stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS, wait_fixed=settings.RETRY_WAIT_FIXED)
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
     def create(self, request: Request, *args, **kwargs) -> Response:
         """Create a new user."""
         serializer = self.get_serializer(data=request.data)
@@ -38,9 +43,7 @@ class UserCreateAPIView(RetryExceptionHandler, CreateAPIView):
             password = validated_data.get('password')
             hashed_password = make_password(password)
             validated_data['password'] = hashed_password
-            success = serializer.save()
-            if not success:
-                raise RetryExceptionError('User creation failed', status.HTTP_417_EXPECTATION_FAILED)
+            serializer.save()
 
             message = 'New user created'
             status_code = status.HTTP_201_CREATED
@@ -48,12 +51,17 @@ class UserCreateAPIView(RetryExceptionHandler, CreateAPIView):
         return Response({'message': message}, status=status_code)
 
 
-class UserLoginAPIView(CreateAPIView):
+class UserLoginAPIView(RetryExceptionHandlerMixin, CreateAPIView):
     """Log in a user."""
 
     serializer_class = LoginSerializer
     permission_classes = [~permissions.IsAuthenticated]
 
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
     def post(self, request: Request, *args, **kwargs) -> Response:
         """Log in a user."""
         serializer = self.get_serializer(data=request.data)

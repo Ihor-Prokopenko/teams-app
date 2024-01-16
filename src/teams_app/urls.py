@@ -14,22 +14,27 @@ teams_crud = [
 members_crud = [
     path('', views.MemberListAPIView.as_view(), name="member-list"),
     path('<int:pk>/', views.MemberDetailAPIView.as_view(), name="member-detail"),
-    path('create/', views.MemberCreateView.as_view(), name="member-create"),
+    path('create/', views.MemberCreateAPIView.as_view(), name="member-create"),
     path('<int:pk>/update/', views.MemberUpdateAPIView.as_view(), name="member-update"),
     path('<int:pk>/delete/', views.MemberDeleteAPIView.as_view(), name="member-delete"),
 ]
 
+teams_management = [
+    path('<int:team_pk>/add-member/<int:member_pk>/', views.AddMemberAPIView.as_view(), name="add-member"),
+    path('<int:team_pk>/remove-member/<int:member_pk>/', views.RemoveMemberAPIView.as_view(), name="remove-member"),
+]
+
 teams = [
-    path('teams/', include(
-        teams_crud,
-    )),
+    path('teams/', include([
+        *teams_crud,
+        *teams_management,
+    ])),
 ]
 
 members = [
-    path('members/', include(
-        members_crud,
-    ))
+    path('members/', include([
+        *members_crud,
+    ]))
 ]
-
 
 urlpatterns = [] + teams + members

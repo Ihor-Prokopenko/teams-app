@@ -20,11 +20,12 @@ class User(AbstractUser):
     email = LowercaseEmailField(unique=True, blank=False, null=False)
 
     @property
-    def full_name(self):
+    def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
 
     @full_name.setter
-    def full_name(self, name):
+    def full_name(self, name) -> None:
+        """ Sets the full name of the user. """
         if not name:
             raise ValueError("Full name cannot be empty.")
 
@@ -35,7 +36,8 @@ class User(AbstractUser):
             self.first_name = name.strip()
             self.last_name = ""
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, **kwargs) -> None:
+        """ Override the save method to set the email as the username. """
         self.username = self.email
         super().save(*args, **kwargs)
 

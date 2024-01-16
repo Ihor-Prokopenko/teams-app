@@ -1,6 +1,8 @@
 from django.db import DatabaseError
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import CreateAPIView, ListAPIView, UpdateAPIView, RetrieveAPIView, DestroyAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, UpdateAPIView, RetrieveAPIView, DestroyAPIView, \
+    get_object_or_404
+from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework import status, permissions, filters
@@ -10,7 +12,7 @@ from .mixins import ListMixin
 from .models import Team, Member
 from .serializers import TeamSerializer, TeamCreateSerializer, MemberCreateSerializer, MemberSerializer, \
     MemberUpdateSerializer, TeamUpdateSerializer
-from base.exception_handlers import RetryExceptionError, RetryExceptionHandler
+from base.exception_handlers import RetryExceptionError, RetryExceptionHandlerMixin
 
 from retrying import retry
 
@@ -18,7 +20,7 @@ from retrying import retry
 """ TEAM API ENDPOINTS """
 
 
-class TeamCreateAPIView(CreateAPIView):
+class TeamCreateAPIView(RetryExceptionHandlerMixin, CreateAPIView):
     """ Create a new team """
 
     queryset = Team.objects.all()
@@ -26,16 +28,21 @@ class TeamCreateAPIView(CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     allowed_methods = ['POST']
 
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
     def create(self, request: Request, *args, **kwargs) -> Response:
         """ Create a new team """
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
         except ValidationError as error:
             message = error.detail
             status_code = status.HTTP_400_BAD_REQUEST
             return Response({'message': message}, status=status_code)
-        self.perform_create(serializer)
         return Response({'message': f'Team {serializer.data.get("name")} created'}, status=status.HTTP_201_CREATED)
 
 
@@ -67,7 +74,7 @@ class TeamDetailAPIView(RetrieveAPIView):
         return queryset
 
 
-class TeamUpdateAPIView(RetryExceptionHandler, UpdateAPIView):
+class TeamUpdateAPIView(RetryExceptionHandlerMixin, UpdateAPIView):
     """ Update details of a team """
 
     serializer_class = TeamUpdateSerializer
@@ -80,30 +87,27 @@ class TeamUpdateAPIView(RetryExceptionHandler, UpdateAPIView):
         self.queryset = queryset
         return queryset
 
-    @retry(stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS, wait_fixed=settings.RETRY_WAIT_FIXED)
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
     def put(self, request: Request, *args, **kwargs) -> Response:
         """ Update details of a team """
         partial = True
         serializer = self.get_serializer(self.get_object(), data=request.data, partial=partial)
-
         try:
             serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            message = 'Team details updated'
+            status_code = status.HTTP_200_OK
         except ValidationError as error:
             message = error.detail
             status_code = status.HTTP_400_BAD_REQUEST
-        else:
-            try:
-                self.perform_update(serializer)
-            except Exception as error:
-                raise RetryExceptionError(str(error), status.HTTP_417_EXPECTATION_FAILED)
-
-            message = 'Team details updated'
-            status_code = status.HTTP_200_OK
-
         return Response({'message': message}, status=status_code)
 
 
-class TeamDeleteAPIView(RetryExceptionHandler, DestroyAPIView):
+class TeamDeleteAPIView(RetryExceptionHandlerMixin, DestroyAPIView):
     """ Delete a team """
 
     serializer_class = TeamSerializer
@@ -116,21 +120,24 @@ class TeamDeleteAPIView(RetryExceptionHandler, DestroyAPIView):
         self.queryset = queryset
         return queryset
 
-    @retry(stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS, wait_fixed=settings.RETRY_WAIT_FIXED)
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
     def delete(self, request: Request, *args, **kwargs) -> Response:
         """ Delete a team """
         instance = self.get_object()
-        try:
-            self.perform_destroy(instance)
-        except DatabaseError as error:
-            raise RetryExceptionError(str(error), status.HTTP_417_EXPECTATION_FAILED)
+        if not instance:
+            return Response({'message': 'Team not found'}, status=status.HTTP_404_NOT_FOUND)
+        self.perform_destroy(instance)
         return Response({'message': 'Team deleted'}, status=status.HTTP_200_OK)
 
 
 """  MEMBER API ENDPOINTS """
 
 
-class MemberCreateView(CreateAPIView):
+class MemberCreateAPIView(RetryExceptionHandlerMixin, CreateAPIView):
     """ Create a new member """
 
     queryset = Member.objects.all()
@@ -138,20 +145,21 @@ class MemberCreateView(CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
     allowed_methods = ['POST']
 
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
     def create(self, request: Request, *args, **kwargs) -> Response:
         """ Create a new member """
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
         except ValidationError as error:
             message = error.detail
             status_code = status.HTTP_400_BAD_REQUEST
             return Response({'message': message}, status=status_code)
-        try:
-            self.perform_create(serializer)
-        except DatabaseError as error:
-            raise RetryExceptionError(str(error), status.HTTP_417_EXPECTATION_FAILED)
-
         full_name = serializer.data.get('full_name')
         email = serializer.data.get('email')
         return Response({'message': f'Member {full_name} ({email}) created'}, status=status.HTTP_201_CREATED)
@@ -187,7 +195,7 @@ class MemberDetailAPIView(RetrieveAPIView):
         return queryset
 
 
-class MemberUpdateAPIView(RetryExceptionHandler, UpdateAPIView):
+class MemberUpdateAPIView(RetryExceptionHandlerMixin, UpdateAPIView):
     """ Update user details """
 
     serializer_class = MemberUpdateSerializer
@@ -200,30 +208,27 @@ class MemberUpdateAPIView(RetryExceptionHandler, UpdateAPIView):
         self.queryset = queryset
         return queryset
 
-    @retry(stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS, wait_fixed=settings.RETRY_WAIT_FIXED)
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
     def put(self, request: Request, *args, **kwargs) -> Response:
         """Update member details"""
         partial = True
         serializer = self.get_serializer(self.get_object(), data=request.data, partial=partial)
-
         try:
             serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            message = 'Member details updated'
+            status_code = status.HTTP_200_OK
         except ValidationError as error:
             message = error.detail
             status_code = status.HTTP_400_BAD_REQUEST
-        else:
-            try:
-                self.perform_update(serializer)
-            except DatabaseError as error:
-                raise RetryExceptionError(str(error), status.HTTP_417_EXPECTATION_FAILED)
-
-            message = 'Member details updated'
-            status_code = status.HTTP_200_OK
-
         return Response({'message': message}, status=status_code)
 
 
-class MemberDeleteAPIView(RetryExceptionHandler, DestroyAPIView):
+class MemberDeleteAPIView(RetryExceptionHandlerMixin, DestroyAPIView):
     """ Delete a member """
 
     serializer_class = MemberSerializer
@@ -236,12 +241,74 @@ class MemberDeleteAPIView(RetryExceptionHandler, DestroyAPIView):
         self.queryset = queryset
         return super().get_queryset()
 
-    @retry(stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS, wait_fixed=settings.RETRY_WAIT_FIXED)
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
     def delete(self, request: Request, *args, **kwargs) -> Response:
         """ Delete a member """
-        try:
-            instance = self.get_object()
-            self.perform_destroy(instance)
-        except DatabaseError as error:
-            raise RetryExceptionError(str(error), status.HTTP_417_EXPECTATION_FAILED)
+        instance = self.get_object()
+        if not instance:
+            return Response({'message': 'Member not found'}, status=status.HTTP_404_NOT_FOUND)
+        self.perform_destroy(instance)
         return Response({'message': 'Member deleted'}, status=status.HTTP_200_OK)
+
+
+""" MANAGER API ENDPOINTS """
+
+
+class AddMemberAPIView(APIView):
+    """ Add a member to a team """
+
+    permission_classes = [permissions.IsAuthenticated]
+    allowed_methods = ['POST']
+
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        """ Add a member to a team """
+        team = request.user.teams.all().filter(pk=kwargs.get('team_pk')).first()
+        member = request.user.members.all().filter(pk=kwargs.get('member_pk')).first()
+        if not team or not member:
+            message = 'Invalid team or member'
+            status_code = status.HTTP_400_BAD_REQUEST
+            return Response({'message': message}, status=status_code)
+        if member.team == team:
+            message = 'Member already in the team'
+            status_code = status.HTTP_400_BAD_REQUEST
+            return Response({'message': message}, status=status_code)
+        member.team = team
+        member.save()
+        return Response({'message': 'Member added to the team'}, status=status.HTTP_200_OK)
+
+
+class RemoveMemberAPIView(APIView):
+    """ Remove a member from a team """
+
+    permission_classes = [permissions.IsAuthenticated]
+    allowed_methods = ['POST']
+
+    @retry(
+        stop_max_attempt_number=settings.RETRY_MAX_ATTEMPTS,
+        wait_fixed=settings.RETRY_WAIT_FIXED,
+        retry_on_exception=lambda ex: isinstance(ex, DatabaseError),
+    )
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        """ Remove a member from a team """
+        team = request.user.teams.all().filter(pk=kwargs.get('team_pk')).first()
+        member = request.user.members.all().filter(pk=kwargs.get('member_pk')).first()
+        if not team or not member:
+            message = 'Invalid team or member'
+            status_code = status.HTTP_400_BAD_REQUEST
+            return Response({'message': message}, status=status_code)
+        if member.team != team:
+            message = 'Member is not in the team'
+            status_code = status.HTTP_400_BAD_REQUEST
+            return Response({'message': message}, status=status_code)
+        member.team = None
+        member.save()
+        return Response({'message': 'Member removed from the team'}, status=status.HTTP_200_OK)

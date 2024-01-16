@@ -4,7 +4,9 @@ from rest_framework.response import Response
 
 
 class ListMixin:
-    def list(self: Request, request, *args, **kwargs):
+    """ Add pagination to the list """
+    def list(self: Request, request, *args, **kwargs) -> Response:
+        """ Add pagination to the list """
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
