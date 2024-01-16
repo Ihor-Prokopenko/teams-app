@@ -8,6 +8,10 @@ This application serves as a comprehensive system for managing members, teams, a
 - Clone project with following command:
     - ```git clone https://github.com/Ihor-Prokopenko/teams-app.git```
 
+- Create env file:
+  - create new `.env` file in the root dir and fill it with `.env.example` content
+  - or just rename `.env.example` to `.env`
+
     
 - Make sure You have installed Docker and Docker Daemon is running:
     - ```docker ps``` - command to check
