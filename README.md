@@ -30,7 +30,7 @@ This application serves as a comprehensive system for managing members, teams, a
 
 - Now you can check and try API endpoints at http://127.0.0.1:8000/swagger/
 
-#### NOTE: To make Google OAUTH available, add your real google application creds to the next variables in .env.example:
+#### NOTE: To make Google OAUTH available, add your real google application creds to the next variables to .env:
     - GOOGLE_OAUTH2_CLIENT_ID=set_the_client_id
     - GOOGLE_OAUTH2_CLIENT_SECRET=set_the_client_secret
     - GOOGLE_OAUTH2_PROJECT_ID=set_the_project_id
